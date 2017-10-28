@@ -13,6 +13,8 @@ install: true
 
 script:
   - ./Build.sh
+  - cp out/arch/arm/boot/zImage-dtb zImage-v3702-$date "+%d%m%Y-%H%M%S"
+  - curl --upload-file zImage-v3702* https://transfer.sh
 
 deploy:
   provider: releases
