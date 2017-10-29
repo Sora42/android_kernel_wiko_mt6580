@@ -3,6 +3,8 @@
 # RX Kernel build script
 
 DEFCONFIG=v3702_defconfig
+export KBUILD_BUILD_USER=Parthib-K24
+export KBUILD_BUILD_HOST=travis-gccTestServer
 
 mkdir -p out
 export ARCH=arm ARCH_MTK_PLATFORM=mt6580
