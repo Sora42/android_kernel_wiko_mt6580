@@ -3,6 +3,7 @@
 # RX Kernel build script
 
 DEFCONFIG=v3702_defconfig
+export LOCALVERSION=-`echo R3X`
 export KBUILD_BUILD_USER=Parthib-K24
 export KBUILD_BUILD_HOST=travis-gccTestServer
 
