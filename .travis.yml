@@ -13,14 +13,14 @@ install: true
 
 script:
   - ./Build.sh
-  - cp out/arch/arm/boot/zImage-dtb zImage-v3702-$(date +%b-%d-%Y-%H:%M)
+  - cp out/arch/arm/boot/zImage-dtb zImage-v3702-$(date +%Y%b%d%H%M)
   - curl --upload-file zImage-v3702* https://transfer.sh
 
 deploy:
   provider: releases
   api_key: "$GIT_OAUTH_TOKEN_RAHMY4"
   file: "$PWD/out/arch/arm/boot/zImage-dtb"
-  skip_cleanup: true
+  #skip_cleanup: true
   on:
     tags: true
     all_branches: true
