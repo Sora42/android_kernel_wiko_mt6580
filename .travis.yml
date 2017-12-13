@@ -1,5 +1,5 @@
 language: C
-dist: xenial
+dist: trusty
 before_install:
   - git clone https://bitbucket.org/UBERTC/arm-eabi-4.8 toolchain
   - export CROSS_COMPILE=$PWD/toolchain/bin/arm-eabi-
