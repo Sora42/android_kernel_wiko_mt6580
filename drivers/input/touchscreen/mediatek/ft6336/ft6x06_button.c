@@ -27,7 +27,7 @@
 #include <linux/of_gpio.h>
 #include <linux/of_irq.h>
 
-#include "tpd_custom_ft6x06.h"
+#include "tpd_config.h"
 
 
 

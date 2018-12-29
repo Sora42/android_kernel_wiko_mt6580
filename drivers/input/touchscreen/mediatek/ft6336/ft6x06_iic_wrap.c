@@ -30,7 +30,7 @@
 #include <linux/of_irq.h>
 
 
-#include "tpd_custom_ft6x06.h"
+#include "tpd_config.h"
 
 #if 0
 #define    FTS_PACKET_LENGTH               128

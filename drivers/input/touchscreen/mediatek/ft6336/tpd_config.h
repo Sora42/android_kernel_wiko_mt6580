@@ -39,7 +39,8 @@
 #include <linux/wakelock.h>
 #include <linux/ioctl.h>
 
-#define tp_name_v3702
+#define DRIVER_NAME "ft6x36"
+
 #define TPD_TYPE_CAPACITIVE
 #define CONFIG_TOUCHSCREEN_FT6X05_DISABLE_KEY_WHEN_SLIDE
 

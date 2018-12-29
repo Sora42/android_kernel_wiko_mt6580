@@ -26,7 +26,7 @@
 #include <linux/device.h>
 
 
-#include "tpd_custom_ft6x06.h"
+#include "tpd_config.h"
 
 #include <linux/module.h>
 

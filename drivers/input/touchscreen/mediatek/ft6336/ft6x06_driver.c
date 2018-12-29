@@ -27,8 +27,7 @@
 #include <linux/of_irq.h>
 
 
-#include "tpd_custom_ft6x06.h"
-
+#include "tpd_config.h"
 
 #include <linux/jiffies.h>
 
@@ -89,24 +88,8 @@ extern bool upmu_is_chr_det(void);
 
 extern char tpd_desc[50];
 
-
 static tinno_ts_data *g_pts = NULL;
 static volatile int tpd_flag;
-#ifdef tp_update_v2800 
-#define DRIVER_NAME "ft6336u"
-#else
-
-#define DRIVER_NAME "ft6236"
-#endif
-
-
-
-#ifdef tp_name_v3702
-
-   #undef DRIVER_NAME
-
-   #define DRIVER_NAME "ft6336u"
-#endif
 
 static const struct i2c_device_id ft6x06_tpd_id[] = {{DRIVER_NAME,0},{}};
 
