@@ -98,41 +98,6 @@ u8 g_tp_charger_flag = 0;
 extern bool upmu_is_chr_det(void);
 #endif
 
-#ifdef TPD_HAVE_BUTTON
-
-static int tpd_keys_local[TPD_KEY_COUNT] = TPD_KEYS;
-static int tpd_keys_dim_local_BYD[TPD_KEY_COUNT][4] = TPD_KEYS_DIM_BYD;
-static int tpd_keys_dim_local_NB[TPD_KEY_COUNT][4] = TPD_KEYS_DIM_NB;
-
-//BEIN <tp> <DATE20130514> <tp proximity> zhangxiaofei
-#ifdef TPD_PROXIMITY
-extern int g_current_tp_ic;
-
-#define TPD_PROXIMITY_ENABLE_REG                  0xB0
-#define TPD_PROXIMITY_CLOSE_VALUE                 0xC0
-#define TPD_PROXIMITY_FARAWAY_VALUE               0xE0
-
-static u8 tpd_proximity_flag            = 0;
-static u8 tpd_proximity_flag_one        = 0; //add for tpd_proximity by wangdongfang
-static u8 tpd_proximity_detect          = 1; //0-->close ; 1--> far away
-
-#endif
-//END <tp> <DATE20130514> <tp proximity> zhangxiaofei
-
-static void tinno_update_tp_button_dim(int panel_vendor)
-{
-    if ( FTS_CTP_VENDOR_NANBO == panel_vendor )
-    {
-        tpd_button_setting(TPD_KEY_COUNT, tpd_keys_local, tpd_keys_dim_local_NB);
-    }
-    else
-    {
-        tpd_button_setting(TPD_KEY_COUNT, tpd_keys_local, tpd_keys_dim_local_BYD);
-    }
-}
-
-#endif
-
 extern char tpd_desc[50];
 
 
@@ -957,9 +922,7 @@ static int  tpd_probe(struct i2c_client *client, const struct i2c_device_id *id)
     {
         goto err_get_version;
     }
-#ifdef TPD_HAVE_BUTTON
-    tinno_update_tp_button_dim(panel_vendor);
-#endif
+    
 #ifdef CONFIG_TOUCHSCREEN_FT5X05_DISABLE_KEY_WHEN_SLIDE
     if ( fts_keys_init(ts) )
     {
@@ -1077,9 +1040,13 @@ static int tpd_local_init(void)
         i2c_del_driver(&tpd_i2c_driver);
         return -1;
     }
-#ifdef TPD_HAVE_BUTTON
-    tinno_update_tp_button_dim(FTS_CTP_VENDOR_NANBO);
-#endif
+    
+    /* tpd_load_status = 1; */
+	if (tpd_dts_data.use_tpd_button) {
+		tpd_button_setting(tpd_dts_data.tpd_key_num, tpd_dts_data.tpd_key_local,
+		tpd_dts_data.tpd_key_dim_local);
+	}
+
     TPD_DMESG("end %s, %d\n", __FUNCTION__, __LINE__);
     tpd_type_cap = 1;
     return 0;
@@ -1294,11 +1261,7 @@ static struct tpd_driver_t tpd_device_driver =
     .tpd_local_init = tpd_local_init,
     .suspend = tpd_suspend,
     .resume = tpd_resume,
-#ifdef TPD_HAVE_BUTTON
-    .tpd_have_button = 1,
-#else
-    .tpd_have_button = 0,
-#endif
+
     //BEGIN <touch panel> <DATE20130909> <touch panel version info> zhangxiaofei
     .tpd_get_fw_version = ft6x06_tpd_get_fw_version,
     .tpd_get_fw_vendor_name = ft6x06_tpd_get_fw_vendor_name,
