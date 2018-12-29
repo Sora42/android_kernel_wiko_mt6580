@@ -40,17 +40,6 @@
 #include <linux/sensors_io.h>
 #endif
 
-
-//LINE<touch panel><date20131021><tp auto update>yinhuiyong
-#define  FTS_AUTO_TP_UPGRADE
-#ifdef  FTS_AUTO_TP_UPGRADE
-#ifdef tp_update_v2800
-#include "ftbin_dijing.h"
-#else
-#include "ftbin_HRC.h"
-#endif // tp_update_v2800 
-#endif
-
 static int work_lock=0x00;
 #define FTS_SUPPORT_TRACK_ID
 
@@ -769,60 +758,7 @@ static char *fts_get_vendor_name(int vendor_id)
     }
 	return "UNKNOWN";
 }
-//BEGIN<touch panel><date20131021><tp auto update>yinhuiyong
-#ifdef  FTS_AUTO_TP_UPGRADE
-static struct task_struct * focaltech_update_thread;
-static  int update_firmware_thread(void *priv)
-{
-	CTP_DBG("current touchpanl is: %s \n", tpd_desc);
-	
-    work_lock=1;
-	
-	
-        #ifdef tp_update_v2800
-         if (NORMAL_BOOT == get_boot_mode())
-        {
-          ft6x06_tp_upgrade(ftbin_dijing, sizeof(ftbin_dijing));
-        }
-        else
-        {
-             CTP_DBG("update_firmware_thread : Dont upgrade");   
-        }
-        #else
-		if (NORMAL_BOOT == get_boot_mode()){
-           ft6x06_tp_upgrade(ftbin_HRC, sizeof(ftbin_HRC));
-		}
-		else{
- 		  CTP_DBG("update_firmware_thread : Dont upgrade");   
 
-		}
-        #endif
-
-	
-    work_lock = 0;
-    kthread_should_stop();
-    return NULL;
-}
-
-int focaltech_auto_upgrade(void)
-{
-    int err;
-    //if(get_match_firmware() == 1)//fts_ctpm_get_upg_ver() != panel_version)
-    //{
-    
-    focaltech_update_thread = kthread_run(update_firmware_thread, 0, TPD_DEVICE);
-    if (IS_ERR(focaltech_update_thread))
-    {
-        err = PTR_ERR(focaltech_update_thread);
-        TPD_DEBUG(TPD_DEVICE " failed to create update_firmware_thread thread: %d\n", err);
-    }
-    //}
-    //else
-    //TPD_DEBUG("Do not excute auto upgrade ..\n");
-    return err;
-}
-#endif
-//END<touch panel><date20131021><tp auto update>yinhuiyong
 static int tpd_irq_registration(void)
 {
 	struct device_node *node = NULL;
@@ -968,14 +904,6 @@ static int  tpd_probe(struct i2c_client *client, const struct i2c_device_id *id)
                 __func__);
 #endif
 
-
-
-//BEGIN<touch panel><date20131028><tp auto update>yinhuiyong
-#ifdef  FTS_AUTO_TP_UPGRADE
-    focaltech_auto_upgrade();
-#endif
-//END<touch panel><date20131028><tp auto update>yinhuiyong
-
 	#ifdef TPD_PROXIMITY
 		g_current_tp_ic = 2;
 	#endif
@@ -1041,7 +969,6 @@ static int tpd_local_init(void)
         return -1;
     }
     
-    /* tpd_load_status = 1; */
 	if (tpd_dts_data.use_tpd_button) {
 		tpd_button_setting(tpd_dts_data.tpd_key_num, tpd_dts_data.tpd_key_local,
 		tpd_dts_data.tpd_key_dim_local);
@@ -1059,9 +986,10 @@ static void tpd_resume(struct early_suspend *h)
     {
         return;
     }
-		input_report_key(tpd->dev, BTN_TOUCH, 0);
-		input_mt_sync(tpd->dev);
-		input_sync(tpd->dev);
+	
+	input_report_key(tpd->dev, BTN_TOUCH, 0);
+	input_mt_sync(tpd->dev);
+	input_sync(tpd->dev);
 
     g_pre_tp_charger_flag = 0;//yixuhong 20141022 add,reset charger status
 #ifdef TPD_PROXIMITY
@@ -1229,32 +1157,7 @@ void ft6x06_tpd_get_fw_vendor_name(char * fw_vendor_name)
     sprintf(fw_vendor_name, "%s", tpd_desc);
 }
 //END <touch panel> <DATE20130909> <touch panel version info> zhangxiaofei
-#if 0
-void ft6x06_ftm_force_update(char * ftm_update){
-CTP_DBG("  ftm  force  update \n");
-  #if defined(FTS_AUTO_TP_UPGRADE)
-     ftm_ft6x06_force_update = true;
-       if(0 == memcmp(tpd_desc, "DIJING",6))
-	{ 
-		   ft6x06_tp_upgrade(ftbin_HRC, sizeof(ftbin_HRC));
-	}
-	
-	
-	#endif
-}
-#endif
-void ft6x06_ftm_force_update(char * ftm_update){
- // if (FACTORY_BOOT == get_boot_mode())
-    //{
-        ftm_ft6x06_force_update = true;
-        #ifdef tp_update_v2800
-        ft6x06_tp_upgrade(ftbin_dijing, sizeof(ftbin_dijing));
-        #else
-        ft6x06_tp_upgrade(ftbin_HRC, sizeof(ftbin_HRC));
-        #endif
-    //}
 
-}
 static struct tpd_driver_t tpd_device_driver =
 {
     .tpd_device_name = DRIVER_NAME,
@@ -1266,7 +1169,6 @@ static struct tpd_driver_t tpd_device_driver =
     .tpd_get_fw_version = ft6x06_tpd_get_fw_version,
     .tpd_get_fw_vendor_name = ft6x06_tpd_get_fw_vendor_name,
     //END <touch panel> <DATE20130909> <touch panel version info> zhangxiaofei
-	.tpd_ftm_force_update=ft6x06_ftm_force_update,
 };
 
 /* called when loaded into kernel */
