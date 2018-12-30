@@ -40,6 +40,7 @@
 #include <linux/ioctl.h>
 
 #define DRIVER_NAME "ft6x36"
+#define DRIVER_COMPATIBLE_MATCH "mediatek,ft6xxx_touch"
 
 #define TPD_TYPE_CAPACITIVE
 //#define CONFIG_TOUCHSCREEN_FT6X05_DISABLE_KEY_WHEN_SLIDE

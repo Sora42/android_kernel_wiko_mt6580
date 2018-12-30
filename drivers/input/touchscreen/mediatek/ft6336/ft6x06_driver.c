@@ -55,7 +55,7 @@ extern void mt65xx_eint_registration(u8 eintno, kal_bool Dbounce_En,
 
 #define APS_ERR   printk
 static int  tpd_probe(struct i2c_client *client, const struct i2c_device_id *id);
-static int tpd_detect(struct i2c_client *client, struct i2c_board_info *info);
+static int i2c_detect(struct i2c_client *client, struct i2c_board_info *info);
 static int  tpd_remove(struct i2c_client *client);
 static int touch_event_handler(void *unused);
 
@@ -83,8 +83,6 @@ extern char tpd_desc[50];
 static tinno_ts_data *g_pts = NULL;
 static volatile int tpd_flag;
 
-static const struct i2c_device_id ft6x06_tpd_id[] = {{DRIVER_NAME,0},{}};
-
 /* This is not use after Android 4.0
 static const struct i2c_device_id tpd_id[] = {{TPD_DEVICE,0},{}};
 unsigned short force[] = {TPD_I2C_GROUP_ID, TPD_I2C_SLAVE_ADDR2, I2C_CLIENT_END, I2C_CLIENT_END};
@@ -94,31 +92,7 @@ static struct i2c_client_address_data addr_data = {
 };
 */
 
-static struct i2c_board_info __initdata ft6x06_i2c_tpd[]=
-{
-    {I2C_BOARD_INFO(DRIVER_NAME, TPD_I2C_SLAVE_ADDR2)}
-    //{I2C_BOARD_INFO(DRIVER_NAME, TPD_I2C_SLAVE_ADDR1)}
-};
-static const struct of_device_id ft6x06_dt_match[] = {
-	{.compatible = "mediatek,ft6xxx_touch"},
-	{},
-};
-
-static struct i2c_driver tpd_i2c_driver =
-{
-    .driver = {
-        .name = DRIVER_NAME,
-	.of_match_table = of_match_ptr(ft6x06_dt_match),
-        //.owner = THIS_MODULE,
-    },
-    .probe = tpd_probe,
-    .remove = tpd_remove,
-    .id_table = ft6x06_tpd_id,
-    .detect = tpd_detect,
-    //.address_data = &addr_data,
-};
-
-static  void tpd_down(tinno_ts_data *ts, int x, int y, int pressure, int trackID)
+static void tpd_down(tinno_ts_data *ts, int x, int y, int pressure, int trackID)
 {
     CTP_DBG("x=%03d, y=%03d, pressure=%03d, ID=%03d", x, y, pressure, trackID);
     input_report_abs(tpd->dev, ABS_PRESSURE, pressure);
@@ -396,7 +370,7 @@ static int touch_event_handler(void *para)
     return 0;
 }
 
-static int tpd_detect (struct i2c_client *client, struct i2c_board_info *info)
+static int i2c_detect(struct i2c_client *client, struct i2c_board_info *info)
 {
     strcpy(info->type, TPD_DEVICE);
     return 0;
@@ -404,14 +378,12 @@ static int tpd_detect (struct i2c_client *client, struct i2c_board_info *info)
 
 static irqreturn_t tpd_eint_interrupt_handler(int irq, void *desc)
 {
-    if ( 0 == tpd_load_status )
-    {
+    if (!tpd_load_status)
         return;
-    }
-    if(work_lock == 1) //updating or doing something else
-    {
+
+    if(work_lock) //updating or doing something else
         return;
-    }
+    
     tpd_flag = 1;
     wake_up_interruptible(&waiter);
 	return IRQ_HANDLED;
@@ -590,12 +562,6 @@ static int  tpd_probe(struct i2c_client *client, const struct i2c_device_id *id)
     int iRetry = 3;
     tinno_ts_data *ts;
     int ret = 0;
-    CTP_DBG("%s,,,,,,,,,,%d,,,,,\n",__func__, __LINE__);
-    if ( tpd_load_status )
-    {
-        CTP_DBG("Already probed a TP, needn't to probe any more!");
-        return -1;
-    }
 
     if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
     {
@@ -697,9 +663,12 @@ static int  tpd_probe(struct i2c_client *client, const struct i2c_device_id *id)
 #endif
 
     /* Global Variable: tpd_load_status
-     * Needed by mtk_tpd to ensure if tpd_probe succeded.
+     * Used to check if (this) tpd_probe succeded.
+     * Needed by mtk_tpd
+     * Needed by tpd_local_init()
      * Success = 1, Failed = 0
      */
+    // If we're here than tpd_probe succeded.
     tpd_load_status = 1;
 
     return 0;
@@ -725,52 +694,6 @@ err_check_functionality_failed:
     return -1;
 }
 
-static int  tpd_remove(struct i2c_client *client)
-{
-    CTP_DBG("TPD removed\n");
-
-//LINE<tp><DATE20130619><add for focaltech debug>zhangxiaofei
-#ifdef FTS_CTL_IIC
-    ft_rw_iic_drv_exit();
-#endif
-    return 0;
-}
-
-static int tpd_local_init(void)
-{
-	int retval;
-
-    TPD_DMESG("Focaltech FT6x06 I2C Touchscreen Driver (Built %s @ %s)\n", __DATE__, __TIME__);
-	tpd->reg = regulator_get(tpd->tpd_dev, "vtouch");
-	retval = regulator_set_voltage(tpd->reg, 2800000, 2800000);
-	if (retval != 0) {
-		TPD_DMESG("Failed to set reg-vgp6 voltage: %d\n", retval);
-		return -1;
-	}
-
-    if(i2c_add_driver(&tpd_i2c_driver)!=0)
-    {
-        TPD_DMESG("unable to add i2c driver.\n");
-        return -1;
-    }
-
-	if(tpd_load_status == 0)
-    {
-        CTP_DBG("FT6x06 add error touch panel driver.\n");
-        i2c_del_driver(&tpd_i2c_driver);
-        return -1;
-    }
-    
-	if (tpd_dts_data.use_tpd_button) {
-		tpd_button_setting(tpd_dts_data.tpd_key_num,
-		    tpd_dts_data.tpd_key_local,
-		    tpd_dts_data.tpd_key_dim_local);
-	}
-
-    TPD_DMESG("end %s, %d\n", __FUNCTION__, __LINE__);
-    tpd_type_cap = 1;
-    return 0;
-}
 
 static void tpd_resume(struct early_suspend *h)
 {
@@ -927,6 +850,109 @@ void ft6x06_tpd_get_fw_vendor_name(char * fw_vendor_name)
 }
 //END <touch panel> <DATE20130909> <touch panel version info> zhangxiaofei
 
+
+static int  tpd_remove(struct i2c_client *client)
+{
+    CTP_DBG("TPD removed\n");
+
+//LINE<tp><DATE20130619><add for focaltech debug>zhangxiaofei
+#ifdef FTS_CTL_IIC
+    ft_rw_iic_drv_exit();
+#endif
+    return 0;
+}
+
+/* I2C device driver Configuration */
+
+static struct i2c_board_info __initdata ft6x06_i2c_tpd[]=
+{
+    {I2C_BOARD_INFO(DRIVER_NAME, TPD_I2C_SLAVE_ADDR2)}
+    //{I2C_BOARD_INFO(DRIVER_NAME, TPD_I2C_SLAVE_ADDR1)}
+};
+
+/* i2c_device_id: tpd_device_id
+ * Needed by i2c_driver: tpd_i2c_driver->id_table
+ */
+static const struct i2c_device_id tpd_device_id[] = {
+	{
+		.name = DRIVER_NAME,
+		.driver_data = 0,
+	},
+};
+
+/* of_device_id: tpd_dt_match 
+ * Needed by i2c_driver: tpd_i2c_driver->driver->tpd_i2c_driver
+ */
+static const struct of_device_id tpd_dt_match[] = {
+	{
+		//.name = "",
+		//.type = "",
+		.compatible = DRIVER_COMPATIBLE_MATCH,
+		//.data = of_data,
+	},
+};
+
+/* i2c_driver: tpd_i2c_driver
+ * Needed by tpd_local_init()
+ */
+static struct i2c_driver tpd_i2c_driver =
+{
+    .driver = {
+        .name = DRIVER_NAME,
+	    .of_match_table = of_match_ptr(tpd_dt_match),
+        //.owner = THIS_MODULE,
+    },
+    .probe = tpd_probe,
+    .remove = tpd_remove,
+    .id_table = tpd_device_id,
+    .detect = i2c_detect,
+    //.address_data = &addr_data,
+};
+
+/* Function: tpd_local_init
+ * Called by mtk_tpd to start the driver.
+ * param void void
+ * return 0 if success, -1 if failed.
+ */
+static int tpd_local_init(void)
+{
+	int retval;
+
+    TPD_DMESG("Focaltech FT6x06 I2C Touchscreen Driver Init.");
+
+	tpd->reg = regulator_get(tpd->tpd_dev, "vtouch");
+	retval = regulator_set_voltage(tpd->reg, 2800000, 2800000);
+	if (retval != 0) {
+		TPD_DMESG("Failed to set reg-vgp6 voltage: %d\n", retval);
+		return -1;
+	}
+
+    /* probe driver */
+    if(i2c_add_driver(&tpd_i2c_driver)!=0)
+    {
+        TPD_DMESG("unable to add i2c driver.\n");
+        return -1;
+    }
+
+    /* Remove driver if tpd_probe failed */
+	if(!tpd_load_status)
+    {
+        CTP_DBG("FT6x06 add error touch panel driver.\n");
+        i2c_del_driver(&tpd_i2c_driver);
+        return -1;
+    }
+    
+	if (tpd_dts_data.use_tpd_button) {
+		tpd_button_setting(tpd_dts_data.tpd_key_num,
+		    tpd_dts_data.tpd_key_local,
+		    tpd_dts_data.tpd_key_dim_local);
+	}
+
+    TPD_DMESG("end %s, %d\n", __FUNCTION__, __LINE__);
+    tpd_type_cap = 1;
+    return 0;
+}
+
 static struct tpd_driver_t tpd_device_driver =
 {
     .tpd_device_name = DRIVER_NAME,
@@ -934,13 +960,15 @@ static struct tpd_driver_t tpd_device_driver =
     .suspend = tpd_suspend,
     .resume = tpd_resume,
 
-    //BEGIN <touch panel> <DATE20130909> <touch panel version info> zhangxiaofei
-    .tpd_get_fw_version = ft6x06_tpd_get_fw_version,
-    .tpd_get_fw_vendor_name = ft6x06_tpd_get_fw_vendor_name,
-    //END <touch panel> <DATE20130909> <touch panel version info> zhangxiaofei
+    // //BEGIN <touch panel> <DATE20130909> <touch panel version info> zhangxiaofei
+    // .tpd_get_fw_version = ft6x06_tpd_get_fw_version,
+    // .tpd_get_fw_vendor_name = ft6x06_tpd_get_fw_vendor_name,
+    // //END <touch panel> <DATE20130909> <touch panel version info> zhangxiaofei
 };
 
-/* called when loaded into kernel */
+/* Fucntion: tpd_driver_init
+ * Called when loaded into kernel
+ */
 static int __init tpd_driver_init(void)
 {
     CTP_DBG("MediaTek FT6x06 touch panel driver init\n");
