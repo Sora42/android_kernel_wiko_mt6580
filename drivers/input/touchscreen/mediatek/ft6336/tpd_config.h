@@ -55,6 +55,15 @@
 #define TPD_WAKEUP_DELAY         100
 #endif
 
+#define CONFIG_TGESTURE_FUNCTION
+#ifdef CONFIG_TGESTURE_FUNCTION
+	#define KEYCODE_KEYTP 251
+	extern u8 gTGesture;
+	extern int bEnTGesture; 
+	extern char Tg_buf[16];
+	static int tpd_halt= 0;
+#endif
+
 #define TPD_POWER_SOURCE_CUSTOM 	PMIC_APP_CAP_TOUCH_VDD
 
 #define TPD_I2C_GROUP_ID   1

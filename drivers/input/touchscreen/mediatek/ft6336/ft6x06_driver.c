@@ -631,13 +631,21 @@ static int  tpd_probe(struct i2c_client *client, const struct i2c_device_id *id)
        mt_eint_set_hw_debounce(CUST_EINT_TOUCH_PANEL_NUM, CUST_EINT_TOUCH_PANEL_DEBOUNCE_CN);
 	mt_eint_registration(CUST_EINT_TOUCH_PANEL_NUM, EINTF_TRIGGER_FALLING, tpd_eint_interrupt_handler, 0);
 */
+
+#ifdef CONFIG_TGESTURE_FUNCTION
+    strcpy(Tg_buf,"mcs");
+    input_set_capability(tpd->dev, EV_KEY, KEYCODE_KEYTP);
+#endif
+
 	tpd_irq_registration();
 
 	ts->thread = kthread_run(touch_event_handler, ts, TPD_DEVICE);
 	 if (IS_ERR(ts->thread)){ 
-		  retval = PTR_ERR(ts->thread);
-		  TPD_DMESG(TPD_DEVICE " failed to create kernel thread: %d\n", retval);
-			goto err_start_touch_kthread;
+		retval = PTR_ERR(ts->thread);
+		TPD_DMESG(TPD_DEVICE " failed to create kernel thread: %d\n", retval);
+		
+		disable_irq(touch_irq);
+		return -1;
 	}
 
    // mt_eint_unmask(CUST_EINT_TOUCH_PANEL_NUM);
@@ -673,17 +681,14 @@ static int  tpd_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
     return 0;
 
-err_start_touch_kthread:
-  //  mt_eint_mask(CUST_EINT_TOUCH_PANEL_NUM);
-  	disable_irq(touch_irq);
 err_get_version:
 err_isp_register:
-#ifdef CONFIG_TOUCHSCREEN_POWER_DOWN_WHEN_SLEEP
-	retval = regulator_disable(tpd->reg);
-	if (retval != 0)
-		TPD_DMESG("Failed to disable reg-vgp6: %d\n", retval);
+// #ifdef CONFIG_TOUCHSCREEN_POWER_DOWN_WHEN_SLEEP
+// 	retval = regulator_disable(tpd->reg);
+// 	if (retval != 0)
+// 		TPD_DMESG("Failed to disable reg-vgp6: %d\n", retval);
 
-#endif
+// #endif
     fts_6x06_isp_exit();
     mutex_destroy(&ts->mutex);
     g_pts = NULL;
@@ -694,6 +699,55 @@ err_check_functionality_failed:
     return -1;
 }
 
+#ifdef CONFIG_TGESTURE_FUNCTION
+static int ft6x06_read_reg(u8 addr, unsigned char *pdata)
+{
+	int rc;
+	unsigned char buf[2];
+
+	buf[0] = addr;               //register address
+
+	//mutex_lock(&g_pts->mutex);
+	i2c_master_send(g_pts->client, &buf[0], 1);
+	rc = i2c_master_recv(g_pts->client, &buf[0], 1);
+	//mutex_unlock(&g_pts->mutex);
+
+	if (rc < 0)
+		pr_err("msg %s i2c read error: %d\n", __func__, rc);
+
+	*pdata = buf[0];
+	return rc;
+}
+
+int ft6x06_read_d3(void)
+{
+	int ret;
+	uint8_t data;
+	
+	ret = ft6x06_read_reg(0xd3, &data);
+	if (ret < 0){
+		CTP_DBG("i2c error, ret=%d\n", ret);
+		return -1;
+	}
+	CTP_DBG("data=0x%X", data);
+	return (int)data;
+}
+
+static bool get_gesture_switch(void){
+
+	CTP_DBG("get_gesture_switch:bEnTGesture:%d\n",bEnTGesture);
+
+	if(bEnTGesture ==1)
+	{
+		return true;
+	}else{
+		return false;
+	}
+	
+	return false;
+}
+
+#endif
 
 static void tpd_resume(struct early_suspend *h)
 {
@@ -717,21 +771,29 @@ static void tpd_resume(struct early_suspend *h)
             CTP_DBG("isp is already opened.");
             return;
         }
+	#ifdef CONFIG_TGESTURE_FUNCTION
+		if (get_gesture_switch()){
+		tpd_halt = 0;
+				// reset ctp
+		tpd_gpio_output(GTP_RST_PORT, 0);
 
-#ifdef CONFIG_TOUCHSCREEN_POWER_DOWN_WHEN_SLEEP
-        fts_6x06_hw_init();
-#else //!CONFIG_TOUCHSCREEN_POWER_DOWN_WHEN_SLEEP
-        //BEGIN <JIRA ID (KeyCode)> <DATE> <BUG INFO> zhangxiaofei
-        //mt_set_gpio_mode(GPIO_CTP_WAKE_PIN, GPIO_CTP_WAKE_PIN_M_GPIO);
-        //mt_set_gpio_dir(GPIO_CTP_WAKE_PIN, GPIO_DIR_OUT);
-        //mt_set_gpio_out(GPIO_CTP_WAKE_PIN, GPIO_OUT_ZERO);
-        //msleep(1);
-        //mt_set_gpio_mode(GPIO_CTP_WAKE_PIN, GPIO_CTP_WAKE_PIN_M_GPIO);
-        //mt_set_gpio_dir(GPIO_CTP_WAKE_PIN, GPIO_DIR_OUT);
-        //mt_set_gpio_out(GPIO_CTP_WAKE_PIN, GPIO_OUT_ONE);
-        //END <JIRA ID (KeyCode)> <DATE> <BUG INFO> zhangxiaofei
+        msleep(10);
+		tpd_gpio_output(GTP_RST_PORT, 1);
 
-//BEGIN <tp> <DATE20130507> <tp resume> zhangxiaofei
+        msleep(200);//add this line
+        
+			}else{
+
+			// reset ctp
+		tpd_gpio_output(GTP_RST_PORT, 0);
+
+        msleep(10);
+		tpd_gpio_output(GTP_RST_PORT, 1);
+
+        msleep(200);//add this line
+			enable_irq(touch_irq);
+			}
+	#else
         // reset ctp
 		tpd_gpio_output(GTP_RST_PORT, 0);
 
@@ -739,13 +801,38 @@ static void tpd_resume(struct early_suspend *h)
 		tpd_gpio_output(GTP_RST_PORT, 1);
 
         msleep(200);//add this line
+        enable_irq(touch_irq);
         CTP_DBG("TPD wake up done\n");
-//END <tp> <DATE20130507> <tp resume> zhangxiaofei
+	#endif
+	
+// #ifdef CONFIG_TOUCHSCREEN_POWER_DOWN_WHEN_SLEEP
+//         fts_6x06_hw_init();
+// #else //!CONFIG_TOUCHSCREEN_POWER_DOWN_WHEN_SLEEP
+//         //BEGIN <JIRA ID (KeyCode)> <DATE> <BUG INFO> zhangxiaofei
+//         //mt_set_gpio_mode(GPIO_CTP_WAKE_PIN, GPIO_CTP_WAKE_PIN_M_GPIO);
+//         //mt_set_gpio_dir(GPIO_CTP_WAKE_PIN, GPIO_DIR_OUT);
+//         //mt_set_gpio_out(GPIO_CTP_WAKE_PIN, GPIO_OUT_ZERO);
+//         //msleep(1);
+//         //mt_set_gpio_mode(GPIO_CTP_WAKE_PIN, GPIO_CTP_WAKE_PIN_M_GPIO);
+//         //mt_set_gpio_dir(GPIO_CTP_WAKE_PIN, GPIO_DIR_OUT);
+//         //mt_set_gpio_out(GPIO_CTP_WAKE_PIN, GPIO_OUT_ONE);
+//         //END <JIRA ID (KeyCode)> <DATE> <BUG INFO> zhangxiaofei
 
-#endif//CONFIG_TOUCHSCREEN_POWER_DOWN_WHEN_SLEEP
+// //BEGIN <tp> <DATE20130507> <tp resume> zhangxiaofei
+//         // reset ctp
+// 		tpd_gpio_output(GTP_RST_PORT, 0);
+
+//         msleep(10);
+// 		tpd_gpio_output(GTP_RST_PORT, 1);
+
+//         msleep(200);//add this line
+//         CTP_DBG("TPD wake up done\n");
+// //END <tp> <DATE20130507> <tp resume> zhangxiaofei
+
+// #endif//CONFIG_TOUCHSCREEN_POWER_DOWN_WHEN_SLEEP
         //yixuhong delete for ke mutex_unlock(&g_pts->mutex);//Lock on suspend
     //    mt_eint_unmask(CUST_EINT_TOUCH_PANEL_NUM);
-    	enable_irq(touch_irq);
+    // 	enable_irq(touch_irq);
         atomic_set( &g_pts->ts_sleepState, 0 );
     }
 }
@@ -765,6 +852,116 @@ void ft6x06_complete_unfinished_event( void )
     input_sync(tpd->dev);
 }
 
+
+
+
+#ifdef CONFIG_TGESTURE_FUNCTION
+static void tpd_gesture_cmd(void)
+{
+	int ret = 0;
+	
+	int iRetry = 3;
+	const char data = 0x01;
+	const char dataEnCharCM = 0x14;
+
+	while (iRetry) 
+	{
+		ret = fts_write_reg(0xd0, data);
+		msleep(1);
+		CTP_DBG("read data 0xd0 is %d\n", data);  //xiaojy
+		msleep(1);
+		
+	    ret = fts_write_reg(0xd2, dataEnCharCM);
+	
+		
+		if ( ret < 0 )
+		{
+			CTP_DBG("write data is %d\n", ret);  
+		}
+		else
+		{
+			break;
+		}
+		iRetry--;		  	
+	}
+				
+	if(iRetry == 0)
+	{
+    	  iRetry = 3;
+		  fts_6x06_hw_reset();
+		 CTP_DBG("Reset TPD again!\n");
+    	  msleep(150);
+    	while (iRetry) 
+		  {
+    	    ret = fts_write_reg(0xd0, data);
+    		msleep(1);
+    	
+    	    ret = fts_write_reg(0xd2, dataEnCharCM);
+    		msleep(1);
+    	      
+    		if ( ret < 0 )
+    		{
+    			CTP_DBG("write data is %d\n", ret);  
+    		}
+    		else
+    		{
+    			break;
+    		}
+    		iRetry--;		  	
+    	}
+	  }
+
+}
+
+
+static void tpd_gesture_turn_off(void)
+{
+	int ret = 0;
+	
+	int iRetry = 3;
+	const char data = 0x00;
+	
+	while (iRetry) 
+	{
+       ret = fts_write_reg(0xd0, data);
+	
+		if ( ret < 0 )
+		{
+			CTP_DBG("write data is %d\n", ret);  
+		}
+		else
+		{
+			break;
+		}
+		iRetry--;		  	
+	}
+				
+	if(iRetry == 0)
+	{
+    	  iRetry = 3;
+		  fts_6x06_hw_reset();
+		 CTP_DBG("Reset TPD again!\n");
+    	  msleep(150);
+    	 while (iRetry) 
+		  {
+    	    ret = fts_write_reg(0xd0, data);
+    		
+    		if ( ret < 0 )
+    		{
+    			CTP_DBG("write data is %d\n", ret);  
+    		}
+    		else
+    		{
+    			break;
+    		}
+    		iRetry--;		  	
+    	}
+	  }
+
+}
+
+#endif 
+
 static void tpd_suspend(struct early_suspend *h)
 {
     int ret = 0;
@@ -783,27 +980,41 @@ static void tpd_suspend(struct early_suspend *h)
             CTP_DBG("isp is already opened.");
             return;
         }
+        
+#ifdef CONFIG_TGESTURE_FUNCTION
+	if (get_gesture_switch()){
+		
+			tpd_halt = 1;	
+		   tpd_gesture_cmd();
+		
+		}else{
+
+			tpd_halt = 0;
+			tpd_gesture_turn_off();
+			
+		while (iRetry)
+        {
+            ret = i2c_smbus_write_i2c_block_data(g_pts->client, 0xA5, 1, &data);  //TP enter sleep mode
+            if ( ret < 0 )
+            {
+                TPD_DMESG("Enter sleep mode is %d\n", ret);
+				retval = regulator_disable(tpd->reg);
+				if (retval != 0)
+					TPD_DMESG("Failed to disable reg-vgp6: %d\n", retval);
+
+                msleep(2);
+                fts_6x06_hw_init();
+            }
+            else
+            {
+                break;
+            }
+            iRetry--;
+            msleep(100);
+        }
 		disable_irq(touch_irq);
-
-     //   mt_eint_mask(CUST_EINT_TOUCH_PANEL_NUM);
-        //mutex_lock(&g_pts->mutex);//Unlock on resume
-        //yixuhong delete for ke mutex_trylock(&g_pts->mutex);//Unlock on resume
-
-#ifdef CONFIG_TOUCHSCREEN_POWER_DOWN_WHEN_SLEEP
-		tpd_gpio_output(GTP_RST_PORT, 0);
-
-        msleep(2);
-		retval = regulator_disable(tpd->reg);
-		if (retval != 0)
-			TPD_DMESG("Failed to disable reg-vgp6: %d\n", retval);
-
-#else //!CONFIG_TOUCHSCREEN_POWER_DOWN_WHEN_SLEEP
-        //make sure the WakeUp is high before it enter sleep mode,
-        //otherwise the touch can't be resumed.
-        //mt_set_gpio_mode(GPIO_CTP_EN_PIN, GPIO_CTP_EN_PIN_M_GPIO);
-        //mt_set_gpio_dir(GPIO_CTP_EN_PIN, GPIO_DIR_OUT);
-        //mt_set_gpio_out(GPIO_CTP_EN_PIN, GPIO_OUT_ONE);
-        //msleep(1);
+		}
+	#else
 
         while (iRetry)
         {
@@ -825,7 +1036,50 @@ static void tpd_suspend(struct early_suspend *h)
             iRetry--;
             msleep(100);
         }
-#endif//CONFIG_TOUCHSCREEN_POWER_DOWN_WHEN_SLEEP
+		disable_irq(touch_irq);
+#endif
+
+     //   mt_eint_mask(CUST_EINT_TOUCH_PANEL_NUM);
+        //mutex_lock(&g_pts->mutex);//Unlock on resume
+        //yixuhong delete for ke mutex_trylock(&g_pts->mutex);//Unlock on resume
+
+// #ifdef CONFIG_TOUCHSCREEN_POWER_DOWN_WHEN_SLEEP
+// 		tpd_gpio_output(GTP_RST_PORT, 0);
+
+//         msleep(2);
+// 		retval = regulator_disable(tpd->reg);
+// 		if (retval != 0)
+// 			TPD_DMESG("Failed to disable reg-vgp6: %d\n", retval);
+
+// #else //!CONFIG_TOUCHSCREEN_POWER_DOWN_WHEN_SLEEP
+//         //make sure the WakeUp is high before it enter sleep mode,
+//         //otherwise the touch can't be resumed.
+//         //mt_set_gpio_mode(GPIO_CTP_EN_PIN, GPIO_CTP_EN_PIN_M_GPIO);
+//         //mt_set_gpio_dir(GPIO_CTP_EN_PIN, GPIO_DIR_OUT);
+//         //mt_set_gpio_out(GPIO_CTP_EN_PIN, GPIO_OUT_ONE);
+//         //msleep(1);
+
+//         while (iRetry)
+//         {
+//             ret = i2c_smbus_write_i2c_block_data(g_pts->client, 0xA5, 1, &data);  //TP enter sleep mode
+//             if ( ret < 0 )
+//             {
+//                 TPD_DMESG("Enter sleep mode is %d\n", ret);
+// 				retval = regulator_disable(tpd->reg);
+// 				if (retval != 0)
+// 					TPD_DMESG("Failed to disable reg-vgp6: %d\n", retval);
+
+//                 msleep(2);
+//                 fts_6x06_hw_init();
+//             }
+//             else
+//             {
+//                 break;
+//             }
+//             iRetry--;
+//             msleep(100);
+//         }
+// #endif//CONFIG_TOUCHSCREEN_POWER_DOWN_WHEN_SLEEP
 #if 0//Android 4.0 don't need to report these up events.
         ft6x06_complete_unfinished_event();
 #endif
