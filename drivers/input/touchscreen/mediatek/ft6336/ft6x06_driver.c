@@ -245,11 +245,6 @@ static int tpd_touchinfo(tinno_ts_data *ts, tinno_ts_point *touch_point)
         return -EAGAIN;
     }
 
-    // For processing gestures.
-    if (pReportData->gesture >= 0xF0 && pReportData->gesture <= 0xF3)
-    {
-        //fts_6x06_parase_keys(ts, pReportData);
-    }
     iSearchDeep = 0;
 #ifdef FTS_SUPPORT_TRACK_ID
     for ( i = 0; i < TINNO_TOUCH_TRACK_IDS; i++ )
@@ -475,6 +470,7 @@ static int touch_event_handler(void *para)
 
         //BEGIN <touch panel> <DATE20130831> <tp proximity> zhangxiaofei
 #if defined TPD_PROXIMITY
+#error 
         CTP_DBG(" proxi_tpd_proximity_flag0x%02X\n", tpd_proximity_flag);
         if (tpd_proximity_flag == 1)
         {
@@ -841,14 +837,6 @@ static int  tpd_probe(struct i2c_client *client, const struct i2c_device_id *id)
     {
         goto err_get_version;
     }
-    
-#ifdef CONFIG_TOUCHSCREEN_FT5X05_DISABLE_KEY_WHEN_SLIDE
-    if ( fts_keys_init(ts) )
-    {
-        fts_keys_deinit();
-        goto err_get_version;
-    }
-#endif
 
 	tpd_gpio_as_int(GTP_INT_PORT);
 /*

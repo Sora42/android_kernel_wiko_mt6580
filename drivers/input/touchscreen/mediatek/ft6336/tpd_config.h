@@ -42,7 +42,7 @@
 #define DRIVER_NAME "ft6x36"
 
 #define TPD_TYPE_CAPACITIVE
-#define CONFIG_TOUCHSCREEN_FT6X05_DISABLE_KEY_WHEN_SLIDE
+//#define CONFIG_TOUCHSCREEN_FT6X05_DISABLE_KEY_WHEN_SLIDE
 
 //LINE <tp> <DATE20130507> <tp software suspend> zhangxiaofei
 //#define CONFIG_TOUCHSCREEN_POWER_DOWN_WHEN_SLEEP
@@ -57,89 +57,6 @@
 #define TPD_WAKEUP_DELAY         100
 #endif
 
-#ifdef CONFIG_PROJECT_V3702_BLU_US
-#else
-#define TPD_HAVE_BUTTON
-#endif
-#ifdef TPD_HAVE_BUTTON
-
-#define TPD_YMAX_NB	       1360// 900
-#define TPD_YMAX_BYD	   1360// 900  //LINE <tp> <DATE20130508> <TP YMAX> zhangxiaofei 
-#define TPD_BUTTON_HEIGHT	1280//854
-#define TPD_Y_OFFSET		30
-  
-#ifdef PROJECT_EVERSTAR_PRO
-#define KEYCODE_APP_SWITCH KEY_MENU
-#else
-#define KEYCODE_APP_SWITCH KEY_F17
-#endif
-
-#define TPD_KEY_COUNT           4
-#ifdef PROJECT_EVERSTAR_PRO
-#define TPD_KEYS                {KEY_BACK, KEY_HOMEPAGE, KEY_MENU}
-#else
-#define TPD_KEYS                {KEY_BACK, KEY_HOMEPAGE, KEY_F17}
-#endif
-
-#define TPD_BUTTON_SIZE_HEIGHT_NB  (TPD_YMAX_NB - TPD_BUTTON_HEIGHT - TPD_Y_OFFSET)
-#define TPD_BUTTON_Y_CENTER_NB   	(TPD_BUTTON_HEIGHT + (TPD_YMAX_NB - TPD_BUTTON_HEIGHT)/2 + TPD_Y_OFFSET)
-
-#define TPD_BUTTON_SIZE_HEIGHT_BYD  (TPD_YMAX_BYD - TPD_BUTTON_HEIGHT - TPD_Y_OFFSET)
-#define TPD_BUTTON_Y_CENTER_BYD   	(TPD_BUTTON_HEIGHT + (TPD_YMAX_BYD - TPD_BUTTON_HEIGHT)/2 + TPD_Y_OFFSET)
-
-
-
-//TP virtual key customization
-
-// |                                                                                                                       |
-// |                                                                                                                       |  Touch Pad area ( H < TPD_BUTTON_HEIGHT)
-//  ---------------------------------------------------------------------------------------------------
-// |                                           TPD_Y_OFFSET                                                       |  Virtual key area ( H > TPD_BUTTON_HEIGHT)
-// |---------------------------------------------------------------------------------------------------
-// |TPD_B1_FP | [TPD_B1_W] | TPD_B2_FP | [TPD_B2_W] | TPD_B3_FP | [TPD_B3_W]   |  
-// -----------------------------------------------------------------------------------------------------
-
-//BEGIN <S6030> <DATE20121220> <S6030 TP> zhangxiaofei
-  #define TPD_B1_FP	0//40		//Button 1 pad space
-  #define TPD_B1_W	100 //240//120		//Button 1 Width
-  #define TPD_B2_FP	0//40		//Button 2 pad space
-  #define TPD_B2_W	240//120		//Button 2 Width
-  #define TPD_B3_FP	0//40		//Button 3 pad space
-  #define TPD_B3_W	240//120		//Button 3 Width 
-//END <S6030> <DATE20121220> <S6030 TP> zhangxiaofei
-
-//-------------------------------------------------------------------------
-#define TPD_BUTTON1_X_CENTER	TPD_B1_FP + TPD_B1_W/2
-#define TPD_BUTTON2_X_CENTER	TPD_B1_FP + TPD_B1_W + TPD_B2_FP + TPD_B2_W/2
-#define TPD_BUTTON3_X_CENTER	TPD_B1_FP + TPD_B1_W + TPD_B2_FP + TPD_B2_W + TPD_B3_FP + TPD_B3_W/2
-
-
-// #define TPD_KEYS_DIM_NB    {{TPD_BUTTON1_X_CENTER, TPD_BUTTON_Y_CENTER_NB, TPD_B1_W, TPD_BUTTON_SIZE_HEIGHT_NB},	\
-// 				 			{TPD_BUTTON2_X_CENTER, TPD_BUTTON_Y_CENTER_NB, TPD_B2_W, TPD_BUTTON_SIZE_HEIGHT_NB},	\
-// 							{TPD_BUTTON3_X_CENTER, TPD_BUTTON_Y_CENTER_NB, TPD_B3_W, TPD_BUTTON_SIZE_HEIGHT_NB}}
-
-// #define TPD_KEYS_DIM_BYD  {{TPD_BUTTON1_X_CENTER, TPD_BUTTON_Y_CENTER_BYD, TPD_B1_W, TPD_BUTTON_SIZE_HEIGHT_BYD},	\
-// 				 			{TPD_BUTTON2_X_CENTER, TPD_BUTTON_Y_CENTER_BYD, TPD_B2_W, TPD_BUTTON_SIZE_HEIGHT_BYD},	\
-// 							{TPD_BUTTON3_X_CENTER, TPD_BUTTON_Y_CENTER_BYD, TPD_B3_W, TPD_BUTTON_SIZE_HEIGHT_BYD}}
-
-// 0x78 0x546 0x64 0x32 0x168 0x546 0x64 0x32 0x258 0x546 0x64 0x32 0x2d0 0x546 0x64 0x32
-// 120 1350 100 50
-// 360 1350 100 50
-// 600 1350 100 50
-// 720 1350 100 50
-#define TPD_KEYS_DIM_NB    {{120, 1350, 100, 50},	\
-				 			{360, 1350, 100, 50},	\
-							{600, 1350, 100, 50},	\
-							{720, 1350, 100, 50}}
-
-#define TPD_KEYS_DIM_BYD  {{120, 1350, 100, 50},	\
-				 			{360, 1350, 100, 50},	\
-							{600, 1350, 100, 50},	\
-							{720, 1350, 100, 50}}
-
-extern void tpd_button(unsigned int x, unsigned int y, unsigned int down) ;
-
-#endif
 #define TPD_POWER_SOURCE_CUSTOM 	PMIC_APP_CAP_TOUCH_VDD
 
 #define TPD_I2C_GROUP_ID   1
@@ -254,8 +171,7 @@ int fts_6x06_isp_init( tinno_ts_data *ts);
 void fts_6x06_isp_exit(void);
 void fts_6x06_hw_reset(void);
 int fts_6x06_key_cancel(void);
-int fts_6x06_parase_keys(tinno_ts_data *ts, fts_report_data_t *pReportData);
-int fts_keys_init(tinno_ts_data *ts);
+
 void fts_keys_deinit(void);
 int fts_iic_init( tinno_ts_data *ts );
 int tpd_read_touchinfo(tinno_ts_data *ts);
