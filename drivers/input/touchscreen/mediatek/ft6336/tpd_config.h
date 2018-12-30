@@ -47,9 +47,6 @@
 //LINE <tp> <DATE20130507> <tp software suspend> zhangxiaofei
 //#define CONFIG_TOUCHSCREEN_POWER_DOWN_WHEN_SLEEP
 
-//LINE <tp> <DATE20130514> <tp proximity> zhangxiaofei
-//#define TPD_PROXIMITY
-
 #if (defined(TPD_TYPE_CAPACITIVE))
 #define TPD_POWER_SOURCE        MT65XX_POWER_COUNT_END
 #define TPD_I2C_NUMBER           0

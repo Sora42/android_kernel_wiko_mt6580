@@ -31,14 +31,6 @@
 
 #include <linux/jiffies.h>
 
-
-//LINE <Jira ID (KeyCode)> <DATE20130831> <BUG INFO> zhangxiaofei
-#ifdef TPD_PROXIMITY
-#include <linux/hwmsensor.h>
-#include <linux/hwmsen_dev.h>
-#include <linux/sensors_io.h>
-#endif
-
 static int work_lock=0x00;
 #define FTS_SUPPORT_TRACK_ID
 
@@ -318,128 +310,6 @@ static int tpd_touchinfo(tinno_ts_data *ts, tinno_ts_point *touch_point)
 
 };
 
-
-//BEGIN <touch panel> <DATE20130831> <tp proximity> zhangxiaofei
-#if defined TPD_PROXIMITY
-int tpd_read_ps(void)
-{
-    tpd_proximity_detect;
-    return 0;
-}
-
-static int tpd_get_ps_value(void)
-{
-    return tpd_proximity_detect;
-}
-
-static int tpd_enable_ps(int enable)
-{
-    u8 state;
-    int ret = -1;
-
-    i2c_smbus_read_i2c_block_data(g_pts->client, TPD_PROXIMITY_ENABLE_REG, 1, &state);
-    CTP_DBG("[proxi_5206]read: 999 0xb0's value is 0x%02X\n", state);
-    if (enable)
-    {
-        state |= 0x01;
-        tpd_proximity_flag = 1;
-        CTP_DBG("[proxi_5206]ps function is on\n");
-    }
-    else
-    {
-        state &= 0x00;
-        tpd_proximity_flag = 0;
-        CTP_DBG("[proxi_5206]ps function is off\n");
-    }
-
-    ret = i2c_smbus_write_i2c_block_data(g_pts->client, TPD_PROXIMITY_ENABLE_REG, 1, &state);
-    CTP_DBG("[proxi_5206]write: 0xB0's value is 0x%02X\n", state);
-    return 0;
-}
-
-int tpd_ps_operate(void* self, uint32_t command, void* buff_in, int size_in,
-                   void* buff_out, int size_out, int* actualout)
-{
-    int err = 0;
-    int value;
-
-    hwm_sensor_data *sensor_data;
-    TPD_DEBUG("[proxi_5206]command = 0x%02X\n", command);
-    switch (command)
-    {
-        case SENSOR_DELAY:
-            if((buff_in == NULL) || (size_in < sizeof(int)))
-            {
-                APS_ERR("Set delay parameter error!\n");
-                err = -EINVAL;
-            }
-            // Do nothing
-            break;
-
-        case SENSOR_ENABLE:
-            if((buff_in == NULL) || (size_in < sizeof(int)))
-            {
-                APS_ERR("Enable sensor parameter error!\n");
-                err = -EINVAL;
-            }
-            else
-            {
-                value = *(int *)buff_in;
-                if(value)
-                {
-                    if((tpd_enable_ps(1) != 0))
-                    {
-                        APS_ERR("enable ps fail: %d\n", err);
-                        return -1;
-                    }
-                }
-                else
-                {
-                    if((tpd_enable_ps(0) != 0))
-                    {
-                        APS_ERR("disable ps fail: %d\n", err);
-                        return -1;
-                    }
-                }
-            }
-            break;
-
-        case SENSOR_GET_DATA:
-            if((buff_out == NULL) || (size_out< sizeof(hwm_sensor_data)))
-            {
-                APS_ERR("get sensor data parameter error!\n");
-                err = -EINVAL;
-            }
-            else
-            {
-
-                sensor_data = (hwm_sensor_data *)buff_out;
-
-                if((err = tpd_read_ps()))
-                {
-                    err = -1;;
-                }
-                else
-                {
-                    sensor_data->values[0] = tpd_get_ps_value();
-                    TPD_PROXIMITY_DBG("huang sensor_data->values[0] 1082 = %d\n", sensor_data->values[0]);
-                    sensor_data->value_divide = 1;
-                    sensor_data->status = SENSOR_STATUS_ACCURACY_MEDIUM;
-                }
-
-            }
-            break;
-        default:
-            APS_ERR("proxmy sensor operate function no this parameter %d!\n", command);
-            err = -1;
-            break;
-    }
-
-    return err;
-}
-#endif
-//END <touch panel> <DATE20130831> <tp proximity> zhangxiaofei
-
 static int touch_event_handler(void *para)
 {
     int i;
@@ -449,14 +319,6 @@ static int touch_event_handler(void *para)
    // u8 chr_status = 0;//yixuhong 20141022 add,check for charger status
     sched_setscheduler(current, SCHED_RR, &param);
 
-    //BEGIN <touch panel> <DATE20130831> <tp proximity> zhangxiaofei
-#if defined TPD_PROXIMITY
-    int err;
-    hwm_sensor_data sensor_data;
-    u8 proximity_status;
-    u8 state;
-#endif
-    //END <touch panel> <DATE20130831> <tp proximity> zhangxiaofei
     CTP_DBG("touch_event_handler>>>>");
     do
     {
@@ -468,48 +330,7 @@ static int touch_event_handler(void *para)
         set_current_state(TASK_RUNNING);
 		//disable_irq(touch_irq);
 
-        //BEGIN <touch panel> <DATE20130831> <tp proximity> zhangxiaofei
-#if defined TPD_PROXIMITY
-#error 
-        CTP_DBG(" proxi_tpd_proximity_flag0x%02X\n", tpd_proximity_flag);
-        if (tpd_proximity_flag == 1)
-        {
-            i2c_smbus_read_i2c_block_data(g_pts->client, TPD_PROXIMITY_ENABLE_REG, 1, &state);
-            CTP_DBG("proxi_5206 0xB0 state value is 1131 0x%02X\n", state);
 
-            if(!(state&0x01))
-            {
-                tpd_enable_ps(1);
-            }
-
-            i2c_smbus_read_i2c_block_data(g_pts->client, 0x01, 1, &proximity_status);
-            CTP_DBG("proxi_5206 0x01 value is 1139 0x%02X\n", proximity_status);
-
-            if (proximity_status == TPD_PROXIMITY_CLOSE_VALUE)
-            {
-                tpd_proximity_detect = 0;
-            }
-            else if(proximity_status == TPD_PROXIMITY_FARAWAY_VALUE)
-            {
-                tpd_proximity_detect = 1;
-            }
-
-            CTP_DBG("tpd_proximity_detect 1149 = %d\n", tpd_proximity_detect);
-
-            if ((err = tpd_read_ps()))
-            {
-                TPD_PROXIMITY_DBG("proxi_5206 read ps data 1156: %d\n", err);
-            }
-            sensor_data.values[0] = tpd_get_ps_value();
-            sensor_data.value_divide = 1;
-            sensor_data.status = SENSOR_STATUS_ACCURACY_MEDIUM;
-            if ((err = hwmsen_get_interrupt_data(ID_PROXIMITY, &sensor_data)))
-            {
-                TPD_PROXIMITY_DBG(" proxi_5206 call hwmsen_get_interrupt_data failed= %d\n", err);
-            }
-        }
-#endif
-//END <touch panel> <DATE20130831> <tp proximity> zhangxiaofei
 #if 0
         //BEGIN <add changing flag> <DATE20130330> <add changing flag> zhangxiaofei
         if(g_tp_charger_flag != g_pre_tp_charger_flag)
@@ -875,10 +696,10 @@ static int  tpd_probe(struct i2c_client *client, const struct i2c_device_id *id)
                 __func__);
 #endif
 
-	#ifdef TPD_PROXIMITY
-		g_current_tp_ic = 2;
-	#endif
-
+    /* Global Variable: tpd_load_status
+     * Needed by mtk_tpd to ensure if tpd_probe succeded.
+     * Success = 1, Failed = 0
+     */
     tpd_load_status = 1;
 
     return 0;
@@ -964,17 +785,6 @@ static void tpd_resume(struct early_suspend *h)
 	input_sync(tpd->dev);
 
     g_pre_tp_charger_flag = 0;//yixuhong 20141022 add,reset charger status
-#ifdef TPD_PROXIMITY
-    if (tpd_proximity_flag == 1)
-    {
-        if(tpd_proximity_flag_one == 1)
-        {
-            tpd_proximity_flag_one = 0;
-            TPD_DMESG(TPD_DEVICE " tpd_proximity_flag_one \n");
-            return;
-        }
-    }
-#endif
 
     if ( g_pts )
     {
@@ -1037,20 +847,11 @@ static void tpd_suspend(struct early_suspend *h)
     int ret = 0;
     int iRetry = 5;
     const char data = 0x3;
-		int retval = TPD_OK;
+	int retval = TPD_OK;
+	
     if(work_lock == 1) //updating or doing something else
-    {
         return;
-    }
-//NEGIN <touch panel> <DATE20130831> <tp proximity> zhangxiaofei
-#ifdef TPD_PROXIMITY
-    if (tpd_proximity_flag == 1)
-    {
-        tpd_proximity_flag_one = 1;
-        return;
-    }
-#endif
-//END <touch panel> <DATE20130831> <tp proximity> zhangxiaofei
+    
     if ( g_pts )
     {
         CTP_DBG("TPD enter sleep\n");
@@ -1064,10 +865,6 @@ static void tpd_suspend(struct early_suspend *h)
      //   mt_eint_mask(CUST_EINT_TOUCH_PANEL_NUM);
         //mutex_lock(&g_pts->mutex);//Unlock on resume
         //yixuhong delete for ke mutex_trylock(&g_pts->mutex);//Unlock on resume
-
-#ifdef CONFIG_TOUCHSCREEN_FT5X05_DISABLE_KEY_WHEN_SLIDE
-        fts_6x06_key_cancel();
-#endif
 
 #ifdef CONFIG_TOUCHSCREEN_POWER_DOWN_WHEN_SLEEP
 		tpd_gpio_output(GTP_RST_PORT, 0);
