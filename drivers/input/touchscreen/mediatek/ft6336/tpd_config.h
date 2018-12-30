@@ -236,12 +236,6 @@ typedef struct {
 #define FT5X06_IOCTL_SET_POWER_UP		_IOR(FT6x06_IOCTLID, 5, int)
 #define FT5X06_IOCTL_SET_POWER_DOWN		_IOR(FT6x06_IOCTLID, 6, int)
 
-
-static uint8_t *ft6x06_file_fw_data = NULL;
-static int ft6x06_file_fw_data_len = 0;
-
-
-
 //LINE <ft6x06> <DATE20130507> <modify for ft6x06 touch panel driver> zhangxiaofei
 #define FTS_CTP_FIRWARE_ID (0x791c)   //0x7903---FT6X06, 0x7907---FT5X16   0x791c---ft6366u
 

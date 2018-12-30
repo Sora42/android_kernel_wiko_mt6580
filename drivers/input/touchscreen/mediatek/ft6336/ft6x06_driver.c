@@ -953,8 +953,9 @@ static int tpd_local_init(void)
     }
     
 	if (tpd_dts_data.use_tpd_button) {
-		tpd_button_setting(tpd_dts_data.tpd_key_num, tpd_dts_data.tpd_key_local,
-		tpd_dts_data.tpd_key_dim_local);
+		tpd_button_setting(tpd_dts_data.tpd_key_num,
+		    tpd_dts_data.tpd_key_local,
+		    tpd_dts_data.tpd_key_dim_local);
 	}
 
     TPD_DMESG("end %s, %d\n", __FUNCTION__, __LINE__);

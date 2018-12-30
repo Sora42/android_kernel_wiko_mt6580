@@ -293,7 +293,6 @@ static int fts_mode_switch(tinno_ts_data *ts, int iMode)
 int fts_ft6x06_switch_charger_status(u8 charger_flag)
 {
     int ret = 0;
-    u8 vl_read_charger_flag = 0;
 
     CTP_DBG("charger_flag =  %d\n",charger_flag);
 
@@ -305,57 +304,10 @@ int fts_ft6x06_switch_charger_status(u8 charger_flag)
     }
     msleep(50);
 
-// read check
-#if 0
-    ret = fts_read_reg(0x8b, &vl_read_charger_flag);
-    if (ret < 0){
-        CTP_DBG("read  0x8b failed");
-        goto err;
-    }
-    
-    CTP_DBG("read  vl_read_charger_flag = %d, from register 0x8b", vl_read_charger_flag);
-#endif    
-
 err:
 	return ret;
 }
 //END <add changing flag> <DATE20130330> <add changing flag> zhangxiaofei
-
-
-static int fts_ctpm_auto_clb(void)
-{
-    unsigned char uc_temp[1];
-    unsigned char i ;
-
-    CTP_DBG("start auto CLB.\n");
-    msleep(200);
-    fts_write_reg(0, 0x40);  
-    mdelay(100);   //make sure already enter factory mode
-    fts_write_reg(2, 0x4);  //write command to start calibration
-    mdelay(300);
-    for(i=0;i<100;i++)
-    {
-        fts_read_reg(0,uc_temp);
-        if ( ((uc_temp[0]&0x70)>>4) == 0x0)  //return to normal mode, calibration finish
-        {
-            break;
-        }
-        mdelay(200);
-        CTP_DBG("waiting calibration %d\n",i);
-        
-    }
-    CTP_DBG("calibration OK.\n");
-    
-    msleep(300);
-    fts_write_reg(0, 0x40);  //goto factory mode
-    mdelay(100);   //make sure already enter factory mode
-    fts_write_reg(2, 0x5);  //store CLB result
-    mdelay(300);
-    fts_write_reg(0, 0x0); //return to normal mode 
-    msleep(300);
-    CTP_DBG("store CLB result OK.\n");
-    return 0;
-}
 
 static int ft6x06_get_tp_id(tinno_ts_data *ts, int *ptp_id)
 {
@@ -536,18 +488,6 @@ int ft6x06_get_vendor_version(tinno_ts_data *ts, uint8_t *pfw_vendor, uint8_t *p
 }
 EXPORT_SYMBOL(ft6x06_get_vendor_version);
 
-extern void ft6x06_tp_upgrade(const char * ftbin_buf, int buf_len);
-int ft6x06_fw_upgrade_from_file(void)
-{
-    int ret = -1;
-
-    printk("[ft6x06]  Entry ft6x06_fw_upgrade_from_file \n");
-	
-    ft6x06_tp_upgrade(ft6x06_file_fw_data,ft6x06_file_fw_data_len);
-
-    return 0;
-}
-
 static int fts_isp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	void __user *argp = (void __user *)arg;
@@ -578,32 +518,6 @@ static int fts_isp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	}
 
 	switch (cmd) {
-        case FT6x06_IOCTL_FW_UPDATE:
-         //   printk("[ft6x06] tp upgrade: ft6x06_file_fw_data=%x, ft6x06_file_fw_data_len = %x \n",
-          //         ft6x06_file_fw_data, ft6x06_file_fw_data_len);
-            if((ft6x06_file_fw_data == NULL) || (ft6x06_file_fw_data_len <= 0))
-            {
-                return 0;
-            }
-            else
-            {
-                int ret = 0;
-                ret = ft6x06_fw_upgrade_from_file();
-                printk("[ft6x06]  ft6x06_fw_upgrade_from_file ret =%x ", ret);
-                ft6x06_file_fw_data = NULL;
-                ft6x06_file_fw_data_len = 0;
-                return ret;
-            }
-            break;
-
-        case FT6x06_IOCTL_TP_UPGRADE_SET_BIN_BUF:
-            ft6x06_file_fw_data = (uint8_t *)arg;
-            break;
-
-        case FT6x06_IOCTL_TP_UPGRADE_SET_BIN_LEN:
-            ft6x06_file_fw_data_len = (int)arg;
-            break;
-			
 		case FT5X06_IOCTL_GET_VENDOR_VERSION:
 		{
 			int rc;
@@ -647,182 +561,7 @@ static int fts_isp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 }
 
 //BEGIN<touch panel><date20131021><tp auto update>yinhuiyong
- /* should never be called */
-extern u8 fts_cmd_write5(u8 btcmd,u8 btPara1,u8 btPara2,u8 btPara3,u8 btPara4,u8 num);
-void ft6x06_tp_upgrade(const char * ftbin_buf, int buf_len)
-{
-       unsigned char reg_val[2]={0};
-	int vl_tp_ver = 0x00;
 
-	int vl_bin_ver = 0x00;
-
-	int rc = 0;
-
-	int i = 0;
-       int resettimes=0;
-
-	int tp_id = 0;
-
-
-	CTP_DBG("entry ft6x06_tp_upgrade \n");
-
-	vl_tp_ver = get_fw_version_ext();
-	if(ic_type_flag){
-		vl_bin_ver = ftbin_buf[0x10A];
-	}else{
-		vl_bin_ver = ftbin_buf[buf_len-2];
-	}
-       CTP_DBG("entry ft6x06_tp_upgrade vl_bin_ver=%x \n",vl_bin_ver);
-	vl_tp_ver = get_fw_version_ext(); 
-
-	if(vl_bin_ver > vl_tp_ver || (ftm_ft6x06_force_update == 1))
-	//if (1)
-	{
-		CTP_DBG(" have new ver, upgrade... \n");
-
-		CTP_DBG("Step 1:switch mode from WORK to UPDATE...");
-             do{
-                
-		rc = fts_mode_switch(g_pts, (int)FTS_MODE_UPDATE);
-		if(rc)
-		{
-			CTP_DBG("switch to update mode error");
-			return; //  -EIO;
-		}
-
-		msleep(10);
-
-
-		CTP_DBG("Step 2:check READ-ID...\n");
-
-		
-		
-		for( i = 0; i < 3; i++ )
-		{
-			rc = ft6x06_get_tp_id(g_pts, &tp_id);
-			CTP_DBG("TPID=0x%X!rc =%d\n", tp_id,rc);
-			if(rc)
-			{
-				CTP_DBG("Get tp ID error(%d)\n", rc);
-				return ; // rc = -EIO;
-			} 
-			else
-			{
-				CTP_DBG("tp_id=0x%X\n", tp_id);
-	            // 5316-->7907      5206-->7903
-				//if ( 0x7908 == tp_id ){           // FT6X06
-				if ( FTS_CTP_FIRWARE_ID == tp_id ){               // FT6X36
-					CTP_DBG("check id OK \n");
-					break;
-				}
-			}
-		}
-             }while(0==tp_id&&(resettimes++)<20);
-             CTP_DBG("\n tp_id = %d, resettimes = %d ",tp_id,resettimes);
-		if ( i == 3 )
-		{
-			CTP_DBG("\n CHECK-ID error!");
-			return; // goto err_read_id;
-		}
-
-		//LINE <ft6x06> <DATE20140910> <modify for ft6336> yolo
-		if(ic_type_flag)
-		{
-        	rc = fts_cmd_write5(0x90, 0, 0, 0, 0,5);
-			if (rc < 1) {
-				CTP_DBG("erase failed");
-				return;
-			}
-		}
-		CTP_DBG("Step 4:erase falsh...");
-
-		rc = fts_cmd_write(0x61, 0, 0, 0, 1);
-		if (rc < 1) {
-			CTP_DBG("erase failed");
-			return;
-		}
-
-		//LINE <ft6x06> <DATE20140910> <modify for ft6336> yolo
-		if(ic_type_flag){
-			msleep(2000);   // FT6X36
-			for(i=0; i < 200; i++)
-            {
-                rc = fts_cmd_write(0x6A, 0, 0, 0, 4);
-                rc = i2c_master_recv(g_pts->client, reg_val, 2);
-                if(0xB0 == reg_val[0] && 0x02 == reg_val[1])
-                {
-                    CTP_DBG("Step 4-1:erase falsh...");
-                    break;
-		   }
-                msleep(50);   
-             }
-	     }else{
-			msleep(1500);
-	     }
-             
-		CTP_DBG("Step 6:write firmware(FW) to ctpm flash");
-
-
-		rc = fts_i2c_write_block(ftbin_buf, buf_len);
-
-		msleep(100); 
-
-		if ( rc != buf_len ){
-			CTP_DBG("\n Error,  write rc (%d) != buf_len(%d) !!!!!!!!!", rc , buf_len);
-	              msleep(5); 
-			return;
-		}
-		else {
-		CTP_DBG("write OK \n");
-		}
-
-		#if 0
-		CTP_DBG("Step 9:read out checksum...");
-			uint8_t check_sum;
-			CTP_DBG("Try to get checksum!");
-			fts_cmd_write(0xCC,0x00,0x00,0x00,1);
-			ts->client->addr = ts->client->addr & I2C_MASK_FLAG;
-			rc = i2c_master_recv(ts->client, &check_sum, 1);
-			if (rc < 0) {
-				CTP_DBG("read checksum failed");
-			}
-			CTP_DBG("checksum=%d!", check_sum);
-			flag = check_sum;
-			if(copy_to_user(argp,&flag, sizeof(int))!=0)
-			{
-				CTP_DBG("copy_to_user error");
-				return;//rc = -EFAULT;
-			}
-		#endif
-		
-		// same as hw reset, tp comand reset sometime do not work
-		#if 1
-		CTP_DBG("Step 10:reset the new FW...");
-
-		rc = fts_cmd_write(0x07,0x00,0x00,0x00,1);
-		if (rc < 0) {
-			CTP_DBG("reset failed");
-
-			return;
-		}
-
-	       msleep(100);  //make sure CTP startup normally
-	    #endif
-
-		// 6x06 6x08 do not cal
-		//CTP_DBG("Step 11: Calibrate the TP, please don't touch the TP before the operation is finished! ...");
-		//fts_ctpm_auto_clb();
-		
-		fts_6x06_hw_reset();
-
-	}
-	else
-	{
-		CTP_DBG("tp firmware needn't upgrade. \n");
-	}
-	
-
-}
 //END<touch panel><date20131021><tp auto update>yinhuiyong
 static const struct file_operations fts_isp_fops = {
 	.owner = THIS_MODULE,

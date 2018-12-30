@@ -125,7 +125,7 @@ static ssize_t fts_dma_write_m_byte(unsigned char*returnData_va, u32 returnData_
     return 1;
 }
 
-static ssize_t fts_dma_read_m_byte(unsigned char cmd, unsigned char*returnData_va, u32 returnData_pa,unsigned char len)
+static ssize_t fts_dma_read_m_byte(unsigned char cmd, unsigned char*returnData_va, u32 returnData_pa, unsigned char len)
 {
     int rc=0;
 	unsigned char start_addr = cmd;
@@ -164,7 +164,6 @@ static ssize_t fts_bin_write_block_no_dma(uint8_t* pbt_buf, int dw_lenth)
 	int  packet_number;
 	int  temp;
 	int  lenght;
-	unsigned char  packet_buf[FTS_PACKET_LENGTH + 6];
 	unsigned char bt_ecc;
 	int ret;
 	bt_ecc = 0;
@@ -251,26 +250,6 @@ static ssize_t fts_bin_write_block_no_dma(uint8_t* pbt_buf, int dw_lenth)
 
 		mdelay(30);
 	}
-#if 0
-	//send the last six byte
-	for (i = 0; i<6; i++)
-	{
-		packet_buf[0] = 0xbf;
-		packet_buf[1] = 0x00;
-		temp = 0x6ffa + i;
-		packet_buf[2] = (u8)(temp>>8);
-		packet_buf[3] = (u8)temp;
-		temp =1;
-		packet_buf[4] = (u8)(temp>>8);
-		packet_buf[5] = (u8)temp;
-		packet_buf[6] = pbt_buf[ dw_lenth + i]; 
-		bt_ecc ^= packet_buf[6];
-
-		i2c_master_send(g_pts->client, packet_buf, 7);    
-
-		mdelay(40);
-	}
-#endif
 
 	/*********read out checksum***********************/
 	/*send the operation head*/
@@ -287,99 +266,8 @@ static ssize_t fts_bin_write_block_no_dma(uint8_t* pbt_buf, int dw_lenth)
 	return 0;
 }
 
-static ssize_t fts_bin_write_block(uint8_t* pbt_buf, int dw_lenth)
-{
-	unsigned char reg_val[3] = {0};
-	int i = 0, j;
-
-	int  packet_number;
-	int  temp;
-	int  lenght;
-	unsigned char  packet_buf[FTS_PACKET_LENGTH + 6];
-	unsigned char bt_ecc;
-
-	bt_ecc = 0;
-	CTP_DBG("[FT520X]: start upgrade. \n");
-	dw_lenth = dw_lenth - 8;
-	CTP_DBG("####Packet length = 0x %x\n", dw_lenth);
-	packet_number = (dw_lenth) / FTS_PACKET_LENGTH;
-	tpDMABuf_va[0] = 0xbf;
-	tpDMABuf_va[1] = 0x00;
-	for (j=0;j<packet_number;j++){
-		temp = j * FTS_PACKET_LENGTH;
-		tpDMABuf_va[2] = (u8)(temp>>8);
-		tpDMABuf_va[3] = (u8)temp;
-		lenght = FTS_PACKET_LENGTH;
-		tpDMABuf_va[4] = (u8)(lenght>>8);
-		tpDMABuf_va[5] = (u8)lenght;
-
-		for (i=0;i<FTS_PACKET_LENGTH;i++){
-			tpDMABuf_va[6+i] = pbt_buf[j*FTS_PACKET_LENGTH + i]; 
-			bt_ecc ^= tpDMABuf_va[6+i];
-		}
-
-		fts_dma_write_m_byte(tpDMABuf_va, tpDMABuf_pa, FTS_PACKET_LENGTH + 6);
-		mdelay(50);
-		if ((j * FTS_PACKET_LENGTH % 1024) == 0){
-			CTP_DBG("[FT520X] upgrade the 0x%x th byte.\n", ((unsigned int)j) * FTS_PACKET_LENGTH);
-		}
-	}
-
-	if ((dw_lenth) % FTS_PACKET_LENGTH > 0){
-		temp = packet_number * FTS_PACKET_LENGTH;
-		tpDMABuf_va[2] = (u8)(temp>>8);
-		tpDMABuf_va[3] = (u8)temp;
-
-		temp = (dw_lenth) % FTS_PACKET_LENGTH;
-		tpDMABuf_va[4] = (u8)(temp>>8);
-		tpDMABuf_va[5] = (u8)temp;
-
-		for (i=0;i<temp;i++){
-			tpDMABuf_va[6+i] = pbt_buf[ packet_number*FTS_PACKET_LENGTH + i]; 
-			bt_ecc ^= tpDMABuf_va[6+i];
-		}
-
-		fts_dma_write_m_byte(tpDMABuf_va, tpDMABuf_pa,temp+6);    
-		g_pts->client->addr = g_pts->client->addr & I2C_MASK_FLAG;
-
-		mdelay(30);
-	}
-
-	//send the last six byte
-	for (i = 0; i<6; i++){
-		packet_buf[0] = 0xbf;
-		packet_buf[1] = 0x00;
-		temp = 0x6ffa + i;
-		packet_buf[2] = (u8)(temp>>8);
-		packet_buf[3] = (u8)temp;
-		temp =1;
-		packet_buf[4] = (u8)(temp>>8);
-		packet_buf[5] = (u8)temp;
-		packet_buf[6] = pbt_buf[ dw_lenth + i]; 
-		bt_ecc ^= packet_buf[6];
-
-		i2c_master_send(g_pts->client, packet_buf, 7);    
-
-		mdelay(40);
-	}
-
-	/*********read out checksum***********************/
-	/*send the operation head*/
-	fts_cmd_write(0xcc,0x00,0x00,0x00,1);
-	g_pts->client->addr = g_pts->client->addr & I2C_MASK_FLAG;
-	i2c_master_recv(g_pts->client, &reg_val, 1);
-	CTP_DBG("ecc read 0x%x, new firmware 0x%x. \n", reg_val[0], bt_ecc);
-	if(reg_val[0] != bt_ecc){
-		CTP_DBG("check sum error!!\n");
-		return 5;
-	}
-
-	return 0;
-}
-
 int fts_i2c_write_block( u8 *txbuf, int len )
 {
-	//if ( 5 == fts_bin_write_block(txbuf, len) ){
 	if ( 5 == fts_bin_write_block_no_dma(txbuf, len) ){
 	       CTP_DBG("[Error]!! \n");
 		return 5;
@@ -426,224 +314,18 @@ int fts_i2c_write_block( u8 *txbuf, int len )
 }
 #endif
 
-#ifdef MT6577
-#if 0
-
-static int fts_read_block( tinno_ts_data *ts, u8 start_addr, u8 *rxbuf, u8 len )
-{
-	u8 retry;
-	u16 left = len;
-	u16 offset = 0;
-	u8 addr = start_addr;
-
-	if ( rxbuf == NULL )
-		return -1;
-
-	CTP_DBG("device %02X address %04X len %d\n", ts->client->addr, addr, len );
-
-	mutex_lock(&g_pts->mutex);
-	while ( left > 0 ){
-		if ( left > MAX_TRANSACTION_LENGTH ){
-			addr = addr + offset;
-
-			ts->client->addr = ts->client->addr & I2C_MASK_FLAG;
-
-			retry = 0;
-			while ( i2c_master_send(ts->client, &addr, 1 ) < 0 ){
-				retry++;
-				if ( retry == 5 ){
-					ts->client->addr = ts->client->addr & I2C_MASK_FLAG;
-					mutex_unlock(&g_pts->mutex);
-					CTP_DBG("I2C read 0x%X length=%d failed\n", addr + offset, 1);
-					return -1;
-				}
-			}
-
-			retry = 0;
-			while ( i2c_master_recv(ts->client, &rxbuf[offset], MAX_TRANSACTION_LENGTH ) < 0 ){
-				retry++;
-				if ( retry == 5 ){
-					ts->client->addr = ts->client->addr & I2C_MASK_FLAG;
-					mutex_unlock(&g_pts->mutex);
-					CTP_DBG("I2C read 0x%X length=%d failed\n", addr + offset, MAX_TRANSACTION_LENGTH);
-					return -1;
-				}
-			}
-
-			left -= MAX_TRANSACTION_LENGTH;
-			offset += MAX_TRANSACTION_LENGTH;
-		}
-		else{
-			addr = addr + offset;
-
-			ts->client->addr = ts->client->addr & I2C_MASK_FLAG;			
-
-			retry = 0;
-			while ( i2c_master_send(ts->client, &addr, 1 ) < 0 ){
-				retry++;
-				if ( retry == 5 ){
-					ts->client->addr = ts->client->addr & I2C_MASK_FLAG;
-					mutex_unlock(&g_pts->mutex);
-					CTP_DBG("I2C write 0x%X length=%d failed\n", addr + offset, 1);
-					return -1;
-				}
-			}
-
-			retry = 0;
-			while ( i2c_master_recv(ts->client, &rxbuf[offset], left ) < 0 ){
-				retry++;
-				if ( retry == 5 ){
-					ts->client->addr = ts->client->addr & I2C_MASK_FLAG;
-					CTP_DBG("I2C read 0x%X length=%d failed\n", addr + offset, left);
-					mutex_unlock(&g_pts->mutex);
-					return -1;
-				}
-			}
-
-			offset += left;
-			left = 0;
-		}
-	}
-	ts->client->addr = ts->client->addr & I2C_MASK_FLAG;
-    
-	mutex_unlock(&g_pts->mutex);
-	return 0;
-}
-#else
-
-static int fts_read_block( tinno_ts_data *ts, u8 addr, u8 *rxbuf, u8 len )
-{
-	u8 retry;
-	u16 left = len;
-	u16 offset = 0;
-
-	if ( rxbuf == NULL )
-		return -1;
-
-	CTP_DBG("device 0x%02X address %04X len %d\n", ts->client->addr, addr, len );
-
-	mutex_lock(&g_pts->mutex);
-	while ( left > 0 ){
-		if ( left > MAX_I2C_TRANSFER_SIZE ){
-			rxbuf[offset] = ( addr+offset ) & 0xFF;
-			ts->client->addr = ts->client->addr & I2C_MASK_FLAG | I2C_WR_FLAG | I2C_RS_FLAG;
-			retry = 0;
-			while ( i2c_master_send(ts->client, &rxbuf[offset], (MAX_I2C_TRANSFER_SIZE << 8 | 1)) < 0 ){
-				retry++;
-
-				if ( retry == 5 ){
-					ts->client->addr = ts->client->addr & I2C_MASK_FLAG;
-					mutex_unlock(&g_pts->mutex);
-					CTP_DBG("I2C read 0x%X length=%d failed\n", addr + offset, MAX_I2C_TRANSFER_SIZE);
-					return -1;
-				}
-			}
-			left -= MAX_I2C_TRANSFER_SIZE;
-			offset += MAX_I2C_TRANSFER_SIZE;
-		}
-		else{
-			rxbuf[offset] = ( addr+offset ) & 0xFF;
-			ts->client->addr = ts->client->addr & I2C_MASK_FLAG | I2C_WR_FLAG | I2C_RS_FLAG;
-
-			retry = 0;
-			while ( i2c_master_send(ts->client, &rxbuf[offset], (left << 8 | 1)) < 0 ){
-				retry++;
-
-				if ( retry == 5 ){
-					ts->client->addr = ts->client->addr & I2C_MASK_FLAG;
-					mutex_unlock(&g_pts->mutex);
-					CTP_DBG("I2C read 0x%X length=%d failed\n", addr + offset, left);
-					return -1;
-				}
-			}
-			offset += left;
-			left = 0;
-		}
-	}
-	ts->client->addr = ts->client->addr & I2C_MASK_FLAG;
-
-	mutex_unlock(&g_pts->mutex);
-	return 0;
-}
-#endif
-#else
-static int fts_read_block( tinno_ts_data *ts, u8 start_addr, u8 *rxbuf, u8 len )
-{
-	u8 reg_addr;
-	u8 retry;
-	u16 left = len;
-	u16 offset = 0;
-
-	struct i2c_msg msg[2] =
-	{
-		{
-			.addr = ts->client->addr,
-			.flags = 0,
-			.buf = &reg_addr,
-			.len = 1,
-			.timing = I2C_MASTER_CLOCK
-		},
-		{
-			.addr = ts->client->addr,
-			.flags = I2C_M_RD,
-			.timing = I2C_MASTER_CLOCK
-		},
-	};
-
-	if ( rxbuf == NULL )
-		return -1;
-
-	mutex_lock(&g_pts->mutex);
-	while ( left > 0 ){
-		reg_addr = ( start_addr+offset ) & 0xFF;
-
-		msg[1].buf = &rxbuf[offset];
-
-		if ( left > MAX_TRANSACTION_LENGTH ){
-			msg[1].len = MAX_TRANSACTION_LENGTH;
-			left -= MAX_TRANSACTION_LENGTH;
-			offset += MAX_TRANSACTION_LENGTH;
-		}
-		else{
-			msg[1].len = left;
-			left = 0;
-		}
-
-		retry = 0;
-
-		while ( i2c_transfer( ts->client->adapter, &msg[0], 2 ) != 2 ){
-			retry++;
-			if ( retry == 20 ){
-				mutex_unlock(&g_pts->mutex);
-				CTP_DBG("I2C read 0x%X length=%d failed\n", start_addr + offset, len);
-				return -1;
-			}
-		}
-	}
-
-	mutex_unlock(&g_pts->mutex);
-	return 0;
-}
-#endif
-
- int tpd_read_touchinfo(tinno_ts_data *ts)
+int tpd_read_touchinfo(tinno_ts_data *ts)
  {
 	int ret = 0;
 	memset((void *)ts->buffer, FTS_INVALID_DATA, FTS_PROTOCOL_LEN);
-#ifndef MT6577
+
 	ret = fts_dma_read_m_byte(ts->start_reg, tpDMABuf_va, tpDMABuf_pa, FTS_PROTOCOL_LEN);
 	if ( !ret ) {
 		CTP_DBG("i2c_transfer failed, (%d)", ret);
 		return -EAGAIN; 
 	} 
 	memcpy((void *)ts->buffer, tpDMABuf_va, FTS_PROTOCOL_LEN);
-#else
-	ret = fts_read_block(ts,ts->start_reg, ts->buffer, FTS_PROTOCOL_LEN);
-	if ( ret ) {
-		CTP_DBG("i2c_transfer failed, (%d)", ret);
-		return -EAGAIN; 
-	} 
-#endif
+
 	return 0;
 }
 
