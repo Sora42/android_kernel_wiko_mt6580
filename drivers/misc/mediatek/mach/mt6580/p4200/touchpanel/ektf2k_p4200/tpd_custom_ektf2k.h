@@ -4,14 +4,8 @@
 #define ELAN_X_MAX      760 
 #define ELAN_Y_MAX      1280
 
-#define LCM_X_MAX      720 	//simple_strtoul(LCM_WIDTH, NULL, 0)
-#define LCM_Y_MAX      1280	//simple_strtoul(LCM_HEIGHT, NULL, 0)
-
-#ifdef PROJECT_EVERSTAR_PRO
-#define KEYCODE_APP_SWITCH KEY_MENU
-#else
-#define KEYCODE_APP_SWITCH KEY_F17
-#endif
+#define LCM_X_MAX      480 //simple_strtoul(LCM_WIDTH, NULL, 0)
+#define LCM_Y_MAX      800	//simple_strtoul(LCM_HEIGHT, NULL, 0)
 
 //Elan Key's define
 #define ELAN_KEY_BACK		0x10
@@ -21,24 +15,21 @@
 
 /////////////////////////////////////////////////////////
 #define I2C_NUM 0
-#define TPD_POWER_SOURCE_CUSTOM	MT6323_POWER_LDO_VGP2
+#define TPD_POWER_SOURCE_CUSTOM	PMIC_APP_CAP_TOUCH_VDD
 
 //#define SOFTKEY_AXIS_VER
 //#define ELAN_TEN_FINGERS
 //#define _DMA_MODE_
 
-#ifdef CONFIG_PROJECT_V3702_BLU_US
-#else
 #define ELAN_BUTTON
 #define __ELAN_TRUE_BUTTON__
-#endif
-
 
 //#define LCT_VIRTUAL_KEY
 //#define TPD_HAVE_BUTTON
 //#define ELAN_3K_IC_SOLUTION
 
 //#define NON_MTK_MODE	//I2C Support > 8bits Transfer
+#define FTS_AUTO_TP_UPGRADE
 
 #define MTK_ELAN_DEBUG
 
@@ -51,10 +42,11 @@
 
 #define ELAN_DEBUG
 
-//#define TP_PROXIMITY_SENSOR_NEW //tp proximity
+//#if defined(CUSTOM_KERNEL_PS)
+#define TP_PROXIMITY_SENSOR_NEW //tp proximity
+//#endif
+#define ELAN_2527_IC
 
-#define TP_IC_MODEL
 #define IAP_PORTION                     //upgrade  FW
-#define FACTORY_UPDATE_FIRMWARE                    //upgrade  FW
 #define ESD_CHECK
 #endif /* TOUCHPANEL_H__ */
