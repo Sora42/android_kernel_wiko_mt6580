@@ -69,16 +69,15 @@ static int tpd_halt= 0;
 
 #ifdef TPD_HAVE_BUTTON
 
-static int tpd_keys_local[TPD_KEY_COUNT] = TPD_KEYS;
-static int tpd_keys_dim_local[TPD_KEY_COUNT][4] = TPD_KEYS_DIM;
-
 u8 g_pre_tp_charger_flag = 0;
 u8 g_tp_charger_flag = 0;
 extern bool upmu_is_chr_det(void);
 
 static void tinno_update_tp_button_dim(int panel_vendor)
 {
-  tpd_button_setting(TPD_KEY_COUNT, tpd_keys_local, tpd_keys_dim_local);
+	tpd_button_setting(tpd_dts_data.tpd_key_num,
+	    tpd_dts_data.tpd_key_local,
+	    tpd_dts_data.tpd_key_dim_local);
 }
 
 #endif

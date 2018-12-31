@@ -67,52 +67,6 @@
 
 #define KEYCODE_APP_SWITCH KEY_F17
 
-#define TPD_KEY_COUNT           3
-#ifdef CONFIG_MENU_BACK_KEY
-#define TPD_KEYS                {KEY_MENU, KEY_HOMEPAGE, KEY_BACK}
-#else
-#define TPD_KEYS                {KEY_BACK, KEY_HOMEPAGE, KEY_MENU}
-#endif
-#define TPD_BUTTON_SIZE_HEIGHT_NB  (TPD_YMAX_NB - TPD_BUTTON_HEIGHT - TPD_Y_OFFSET)
-#define TPD_BUTTON_Y_CENTER_NB   	(TPD_BUTTON_HEIGHT + (TPD_YMAX_NB - TPD_BUTTON_HEIGHT)/2 + TPD_Y_OFFSET)
-
-#define TPD_BUTTON_SIZE_HEIGHT_BYD  (TPD_YMAX_BYD - TPD_BUTTON_HEIGHT - TPD_Y_OFFSET)
-#define TPD_BUTTON_Y_CENTER_BYD   	(TPD_BUTTON_HEIGHT + (TPD_YMAX_BYD - TPD_BUTTON_HEIGHT)/2 + TPD_Y_OFFSET)
-
-
-
-//TP virtual key customization
-
-// |                                                                                                                       |
-// |                                                                                                                       |  Touch Pad area ( H < TPD_BUTTON_HEIGHT)
-//  ---------------------------------------------------------------------------------------------------
-// |                                           TPD_Y_OFFSET                                                       |  Virtual key area ( H > TPD_BUTTON_HEIGHT)
-// |---------------------------------------------------------------------------------------------------
-// |TPD_B1_FP | [TPD_B1_W] | TPD_B2_FP | [TPD_B2_W] | TPD_B3_FP | [TPD_B3_W]   |  
-// -----------------------------------------------------------------------------------------------------
-
-//BEGIN <S6030> <DATE20121220> <S6030 TP> zhangxiaofei
-  #define TPD_B1_FP	40		//Button 1 pad space
-  #define TPD_B1_W	120		//Button 1 Width
-  #define TPD_B2_FP	40		//Button 2 pad space
-  #define TPD_B2_W	120		//Button 2 Width
-  #define TPD_B3_FP	40		//Button 3 pad space
-  #define TPD_B3_W	120		//Button 3 Width 
-//END <S6030> <DATE20121220> <S6030 TP> zhangxiaofei
-
-//-------------------------------------------------------------------------
-#define TPD_BUTTON1_X_CENTER	TPD_B1_FP + TPD_B1_W/2
-#define TPD_BUTTON2_X_CENTER	TPD_B1_FP + TPD_B1_W + TPD_B2_FP + TPD_B2_W/2
-#define TPD_BUTTON3_X_CENTER	TPD_B1_FP + TPD_B1_W + TPD_B2_FP + TPD_B2_W + TPD_B3_FP + TPD_B3_W/2
-
-
-#define TPD_KEYS_DIM_NB    {{TPD_BUTTON1_X_CENTER, TPD_BUTTON_Y_CENTER_NB, TPD_B1_W, TPD_BUTTON_SIZE_HEIGHT_NB},	\
-				 			{TPD_BUTTON2_X_CENTER, TPD_BUTTON_Y_CENTER_NB, TPD_B2_W, TPD_BUTTON_SIZE_HEIGHT_NB},	\
-							{TPD_BUTTON3_X_CENTER, TPD_BUTTON_Y_CENTER_NB, TPD_B3_W, TPD_BUTTON_SIZE_HEIGHT_NB}}
-
-#define TPD_KEYS_DIM_BYD  {{TPD_BUTTON1_X_CENTER, TPD_BUTTON_Y_CENTER_BYD, TPD_B1_W, TPD_BUTTON_SIZE_HEIGHT_BYD},	\
-				 			{TPD_BUTTON2_X_CENTER, TPD_BUTTON_Y_CENTER_BYD, TPD_B2_W, TPD_BUTTON_SIZE_HEIGHT_BYD},	\
-							{TPD_BUTTON3_X_CENTER, TPD_BUTTON_Y_CENTER_BYD, TPD_B3_W, TPD_BUTTON_SIZE_HEIGHT_BYD}}
 extern void tpd_button(unsigned int x, unsigned int y, unsigned int down) ;
 
 #endif
