@@ -39,6 +39,7 @@
 #include <linux/wakelock.h>
 #include <linux/ioctl.h>
 
+#define DRIVER_NAME "ft6x06"
 
 #define TPD_TYPE_CAPACITIVE
 #define CONFIG_TOUCHSCREEN_FT6X05_DISABLE_KEY_WHEN_SLIDE
@@ -97,6 +98,7 @@ extern void tpd_button(unsigned int x, unsigned int y, unsigned int down) ;
 
 typedef struct _tinno_ts_point{
 	int x, y, pressure, flag;
+	uint8_t	gesture;
 }tinno_ts_point;
 
 typedef struct {
