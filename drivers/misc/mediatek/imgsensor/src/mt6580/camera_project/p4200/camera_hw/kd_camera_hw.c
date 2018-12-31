@@ -8,7 +8,6 @@
 #include <asm/atomic.h>
 
 #include "kd_camera_hw.h"
-
 #include "kd_imgsensor.h"
 #include "kd_imgsensor_define.h"
 #include "kd_camera_feature.h"
