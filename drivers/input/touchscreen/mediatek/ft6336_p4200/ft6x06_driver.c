@@ -730,8 +730,8 @@ static int  tpd_probe(struct i2c_client *client, const struct i2c_device_id *id)
 #endif
 
 #ifdef CONFIG_TGESTURE_FUNCTION
-strcpy(Tg_buf,"mcs");
-input_set_capability(tpd->dev, EV_KEY, KEYCODE_KEYTP);
+    strcpy(Tg_buf,"mcs");
+    input_set_capability(tpd->dev, EV_KEY, KEYCODE_KEYTP);
 #endif
 
 	tpd_gpio_as_int(GTP_INT_PORT);
@@ -763,7 +763,7 @@ input_set_capability(tpd->dev, EV_KEY, KEYCODE_KEYTP);
                 __func__);
 #endif
 
-#ifdef  FTS_AUTO_TP_UPGRADE
+#ifdef FTS_AUTO_TP_UPGRADE
     focaltech_auto_upgrade();
 #endif
 
@@ -1178,11 +1178,8 @@ static struct tpd_driver_t tpd_device_driver =
     .tpd_local_init = tpd_local_init,
     .suspend = tpd_suspend,
     .resume = tpd_resume,
-#ifdef TPD_HAVE_BUTTON
-    .tpd_have_button = 1,
-#else
-    .tpd_have_button = 0,
-#endif
+    //.tpd_have_button = tpd_dts_data.use_tpd_button,
+
     //BEGIN <touch panel> <DATE20130909> <touch panel version info> zhangxiaofei
     .tpd_get_fw_version = ft6x06_tpd_get_fw_version,
     .tpd_get_fw_vendor_name = ft6x06_tpd_get_fw_vendor_name,
