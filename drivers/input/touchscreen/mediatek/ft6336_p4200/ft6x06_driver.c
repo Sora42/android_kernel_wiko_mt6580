@@ -1164,12 +1164,11 @@ void ft6x06_tpd_get_fw_vendor_name(char * fw_vendor_name)
 //END <touch panel> <DATE20130909> <touch panel version info> zhangxiaofei
 
 void ft6x06_ftm_force_update(char * ftm_update){
-CTP_DBG("  ftm  force  update \n");
+    CTP_DBG("  ftm  force  update \n");
   #if defined(FTS_AUTO_TP_UPGRADE)
-     ftm_ft6x06_force_update = true;
-      
+    ftm_ft6x06_force_update = true;
     ft6x06_tp_upgrade(ftbin_yeji, sizeof(ftbin_yeji));
-	#endif
+  #endif
 }
 
 static struct tpd_driver_t tpd_device_driver =
