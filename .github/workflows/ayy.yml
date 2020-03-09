@@ -5,13 +5,12 @@ on: push
 jobs:
   build:
 
-    runs-on: archlinux
-    
+    runs-on: archlinux    
     steps:
     - uses: actions/checkout@v2
     - uses: actions/hello-world-docker-action@master
-        with:
-          who-to-greet: 'Mona the Octocat'
+      with:
+        who-to-greet: 'Mona the Octocat'
     
     - name: configure
       run: echo hi
