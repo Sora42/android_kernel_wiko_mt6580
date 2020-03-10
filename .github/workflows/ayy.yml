@@ -6,11 +6,14 @@ jobs:
   build:
     runs-on: ubuntu-latest
     container: archlinux
+    strategy:
+      matrix:
+        defconfig: [V060, nice]
     steps:
     - uses: actions/checkout@v2
     - uses: actions/hello-world-docker-action@master
       with:
-        who-to-greet: 'Mona the Octocat'
+        who-to-greet: => ${{ matrix.defconfig }}
     
     - name: configure
       run: echo hi; ls; df -h; pwd; cat /proc/cpuinfo; free
